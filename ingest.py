@@ -13,19 +13,19 @@ from tqdm import tqdm
 # ==============================
 
 DB_PATH = "./data"
-JSONL_PATH = "Urteile_bereinigt.jsonl"
+JSONL_PATH = "Urteile_bereinigt_test.jsonl"
 TABLE_NAME = "judgments"
 
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
+CHUNK_SIZE = 1500
+CHUNK_OVERLAP = 300
 
 # 🔥 WICHTIG: Große Chunk-Batches
 CHUNK_BATCH_SIZE = 10000
-EMBEDDING_BATCH_SIZE = 256
+EMBEDDING_BATCH_SIZE = 32 # Reduziert für MPNet (größeres Modell)
 
-EMBEDDING_DIM = 384
+EMBEDDING_DIM = 768
 
 
 # ==============================
@@ -64,7 +64,9 @@ if __name__ == "__main__":
 
     db = lancedb.connect(DB_PATH)
 
-    if TABLE_NAME in db.table_names():
+    # Sicherstellen, dass die Tabelle gelöscht wird, bevor sie neu erstellt wird
+    if TABLE_NAME in db.list_tables():
+        print(f"Lösche alte Tabelle '{TABLE_NAME}'...")
         db.drop_table(TABLE_NAME)
 
     table = db.create_table(TABLE_NAME, schema=SCHEMA)
@@ -163,5 +165,9 @@ if __name__ == "__main__":
             data_to_insert.append(chunk)
 
         table.add(data_to_insert)
+
+    print("Erstelle Volltext-Index für Stichwortsuche...")
+    # In neueren LanceDB Versionen nutzen wir den Standard-Tokenizer explizit
+    table.create_fts_index("text", replace=True)
 
     print("\nFertig! Datenbank ist bereit.")

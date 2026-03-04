@@ -21,31 +21,35 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
+            align-items: center;
             height: 100vh;
             margin: 0;
-            padding: 20px;
+            overflow: hidden; /* Wieder fixiert, da das Fenster jetzt auf den Screen passt */
         }
+
         .main-container {
             display: flex;
-            flex-direction: column;
+            flex-direction: row; /* Nebeneinander */
             align-items: center;
             justify-content: center;
-            gap: 30px;
-            width: 100%;
-            max-width: 600px; 
-            margin-top: 50px; 
+            gap: 40px;
+            width: 95%;
+            max-width: 1400px;
         }
+
         #claudia-avatar-large {
             width: 350px; 
             height: 350px;
             border-radius: 50%;
             object-fit: cover;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            border: none;
+            flex-shrink: 0;
         }
+
         .chat-container { 
             width: 100%;
-            aspect-ratio: 1 / 1; 
+            max-width: 900px; /* 1200px - 25% = 900px */
+            height: 700px;    /* 1400px - 50% = 700px */
             background: var(--medium-bg); 
             border-radius: 12px; 
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
@@ -53,75 +57,98 @@
             flex-direction: column;
             border: 1px solid var(--border-color);
         }
+
         .header { 
-            padding: 20px;
+            padding: 15px;
             border-bottom: 1px solid var(--border-color);
             text-align: center;
+            flex-shrink: 0;
         }
+
         .header h3 {
             margin: 0;
             font-size: 1.5rem;
             color: var(--text-primary);
         }
+
         #chat-output { 
             flex-grow: 1;
             padding: 20px; 
-            overflow-y: auto; 
+            overflow-y: auto;
+            display: block; /* Standard Block-Flow */
+            position: relative;
         }
+
         .message { 
-            margin-bottom: 15px; 
-            padding: 10px 15px; 
+            padding: 12px 16px; 
             border-radius: 18px; 
             line-height: 1.5;
             max-width: 85%;
             word-wrap: break-word;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            position: relative;
+            display: block; /* Block-Elemente sind für Scroll-Berechnungen am stabilsten */
         }
+
         .user-message { 
             background-color: var(--accent); 
             color: white; 
-            margin-left: auto;
+            margin-left: auto; /* Schiebt die Nachricht nach rechts */
             border-bottom-right-radius: 4px;
         }
+
         .claudia-message { 
             background-color: var(--light-bg); 
             color: var(--text-primary);
-            margin-right: auto;
+            margin-right: auto; /* Schiebt die Nachricht nach links */
             border-bottom-left-radius: 4px;
         }
+
         .sources-container {
             margin-top: 10px;
             padding-top: 10px;
             border-top: 1px dashed var(--border-color);
         }
+
         .source-card {
             font-size: 0.8rem;
             background: var(--medium-bg);
             border: 1px solid var(--border-color);
             padding: 8px;
-            margin-top: 5px;
+            margin-top: 8px;
             border-radius: 5px;
         }
-        .source-card p { margin: 0; color: var(--text-secondary); }
+
+        .source-card p { margin: 2px 0; color: var(--text-secondary); }
         .source-card p strong { color: var(--text-primary); }
-        .loading { font-style: italic; color: var(--text-secondary); }
+
         .input-area {
             display: flex;
-            padding: 10px;
+            padding: 15px;
             border-top: 1px solid var(--border-color);
+            background: var(--medium-bg);
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            flex-shrink: 0;
         }
+
         #user-input {
             flex-grow: 1;
             border: 1px solid var(--border-color);
             background-color: var(--light-bg);
             color: var(--text-primary);
             border-radius: 20px;
-            padding: 10px 15px;
+            padding: 10px 20px;
             font-size: 1rem;
             margin-right: 10px;
+            outline: none;
         }
-        #user-input::placeholder {
-            color: var(--text-secondary);
+
+        #user-input:focus {
+            border-color: var(--accent);
         }
+
         #send-btn {
             background-color: var(--accent);
             color: white;
@@ -129,11 +156,25 @@
             border-radius: 50%;
             width: 44px;
             height: 44px;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 0;
-            line-height: 44px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+        }
+
+        #send-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Scrollbar Styling */
+        #chat-output::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-output::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 10px;
         }
     </style>
 </head>
@@ -154,7 +195,7 @@
         </div>
 
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="Frage stellen...">
+            <input type="text" id="user-input" placeholder="Frage stellen..." autofocus>
             <button id="send-btn" title="Senden">&#10148;</button>
         </div>
     </div>

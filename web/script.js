@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function appendMessage(text, sender, sources = []) {
+    function appendMessage(text, sender, sources = [], scrollToStart = false) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'claudia-message');
         
@@ -39,7 +39,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         chatOutput.appendChild(messageDiv);
-        chatOutput.scrollTop = chatOutput.scrollHeight;
+        
+        // Timeout stellt sicher, dass das DOM fertig gerendert ist (inkl. Quellen)
+        setTimeout(() => {
+            if (scrollToStart) {
+                // Präzise Berechnung: 
+                // Aktueller Scroll-Stand + Position der Nachricht im Fenster - oberer Rand des Chat-Fensters
+                const targetY = messageDiv.getBoundingClientRect().top + chatOutput.scrollTop - chatOutput.getBoundingClientRect().top - 10;
+                
+                chatOutput.scrollTo({
+                    top: targetY,
+                    behavior: 'smooth'
+                });
+            } else {
+                // Bei User-Nachrichten einfach nach ganz unten
+                chatOutput.scrollTop = chatOutput.scrollHeight;
+            }
+        }, 100);
+        
         return messageDiv;
     }
 
@@ -61,7 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ text: query }),
             });
 
-            chatOutput.removeChild(loadingMessage);
+            if (loadingMessage && chatOutput.contains(loadingMessage)) {
+                chatOutput.removeChild(loadingMessage);
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -70,10 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            appendMessage(data.answer, 'claudia-message', data.sources);
+            // Hier nutzen wir scrollToStart = true für Claudias Antwort
+            appendMessage(data.answer, 'claudia-message', data.sources, true);
 
         } catch (error) {
-            chatOutput.removeChild(loadingMessage);
+            if (loadingMessage && chatOutput.contains(loadingMessage)) {
+                chatOutput.removeChild(loadingMessage);
+            }
             appendMessage('Verbindung zum Backend fehlgeschlagen. Läuft der Server?', 'claudia-message');
             console.error('Fetch Error:', error);
         }
