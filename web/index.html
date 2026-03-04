@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claudia</title>
+    <style>
+        :root {
+            --dark-bg: #1a1d21;
+            --medium-bg: #272b30;
+            --light-bg: #3c424a;
+            --text-primary: #e8e6e3;
+            --text-secondary: #b0b3b8;
+            --accent: #007bff;
+            --border-color: #424850;
+        }
+
+        body { 
+            background-color: var(--dark-bg); 
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+            max-width: 600px; 
+            margin-top: 50px; 
+        }
+        #claudia-avatar-large {
+            width: 350px; 
+            height: 350px;
+            border-radius: 50%;
+            object-fit: cover;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            border: none;
+        }
+        .chat-container { 
+            width: 100%;
+            aspect-ratio: 1 / 1; 
+            background: var(--medium-bg); 
+            border-radius: 12px; 
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+        .header { 
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+        #chat-output { 
+            flex-grow: 1;
+            padding: 20px; 
+            overflow-y: auto; 
+        }
+        .message { 
+            margin-bottom: 15px; 
+            padding: 10px 15px; 
+            border-radius: 18px; 
+            line-height: 1.5;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .user-message { 
+            background-color: var(--accent); 
+            color: white; 
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .claudia-message { 
+            background-color: var(--light-bg); 
+            color: var(--text-primary);
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        .sources-container {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border-color);
+        }
+        .source-card {
+            font-size: 0.8rem;
+            background: var(--medium-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 5px;
+        }
+        .source-card p { margin: 0; color: var(--text-secondary); }
+        .source-card p strong { color: var(--text-primary); }
+        .loading { font-style: italic; color: var(--text-secondary); }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            background-color: var(--light-bg);
+            color: var(--text-primary);
+            border-radius: 20px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+        #user-input::placeholder {
+            color: var(--text-secondary);
+        }
+        #send-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 44px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <img src="claudia_avatar.webp" alt="Claudia Avatar" id="claudia-avatar-large">
+
+    <div class="chat-container">
+        <div class="header">
+            <h3>Claudia</h3>
+        </div>
+
+        <div id="chat-output">
+            <div class="message claudia-message">
+                Moin! Ich kenne 251.038 Gerichtsurteile. Beschreibe mir dein Anliegen... Je Blumiger desto besser!
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Frage stellen...">
+            <button id="send-btn" title="Senden">&#10148;</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

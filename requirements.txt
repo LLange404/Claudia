@@ -1,0 +1,11 @@
+langchain
+langchain-community
+langchain-anthropic
+langchain-text-splitters
+lancedb
+sentence-transformers
+python-dotenv
+tqdm
+fastapi
+uvicorn
+jq

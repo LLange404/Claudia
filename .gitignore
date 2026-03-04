@@ -1,0 +1,8 @@
+.env
+
+venv/
+
+data/*
+!data/.gitkeep
+
+Urteile_bereinigt.jsonl
