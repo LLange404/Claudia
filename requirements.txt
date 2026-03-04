@@ -3,9 +3,14 @@ langchain-community
 langchain-anthropic
 langchain-text-splitters
 lancedb
+tantivy
 sentence-transformers
 python-dotenv
 tqdm
 fastapi
 uvicorn
+pandas
+pyarrow
+torch
+numpy
 jq

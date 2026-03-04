@@ -14,12 +14,12 @@ Claudia ist eine spezialisierte **RAG-Anwendung (Retrieval-Augmented Generation)
 
 ## 🛠 Tech-Stack
 
-- **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python)
-- **Vektordatenbank:** [LanceDB](https://lancedb.com/) (Serverless, performant, unterstützt hybride Suche)
-- **LLM:** [Anthropic Claude 3.5 Sonnet](https://www.anthropic.com/claude) (über LangChain)
-- **Embeddings:** `sentence-transformers/all-mpnet-base-v2` (768 Dimensionen)
-- **Framework:** [LangChain](https://www.langchain.com/) für Orchestrierung und Prompt-Management
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3 (Modernes Flexbox/Grid Layout)
+- **Backend:** [FastAPI](https://fastapi.tiangolo.com/)
+- **Vektordatenbank:** [LanceDB](https://lancedb.com/)
+- **LLM:** [Anthropic claude-sonnet-4-6]
+- **Embeddings:** `sentence-transformers/all-mpnet-base-v2`
+- **Framework:** [LangChain]
+- **Frontend:** Vanilla JavaScript, HTML5, CSS3
 
 
 ## 🔍 Architektur-Details
@@ -32,10 +32,3 @@ Claudia ist eine spezialisierte **RAG-Anwendung (Retrieval-Augmented Generation)
    - Falls nach einer Anzahl gefragt wird, ermittelt das System die `nunique` Aktenzeichen in den Metadaten.
 3. **Augmentation:** Die gefundenen Textstellen werden zusammen mit der Gesamtzahl und dem System-Prompt an Claude übermittelt.
 4. **Generation:** Claude generiert eine präzise Antwort basierend *ausschließlich* auf dem bereitgestellten Kontext.
-
-### Datenbank-Schema
-| Feld | Typ | Beschreibung |
-| :--- | :--- | :--- |
-| `vector` | Float32 Array (768) | Semantischer Vektor (MPNet) |
-| `text` | UTF-8 String | Der eigentliche Urteilstext (Chunk) |
-| `metadata` | Struct | Enthält `court_name`, `file_number`, `date` |
