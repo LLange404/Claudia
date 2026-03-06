@@ -12,7 +12,7 @@ import pandas as pd
 
 from langchain_anthropic import ChatAnthropic
 from langchain_community.vectorstores import LanceDB
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 import lancedb
 
 
@@ -46,11 +46,9 @@ llm = ChatAnthropic(
     model="claude-sonnet-4-6",
     anthropic_api_key=ANTHROPIC_API_KEY,
     max_tokens=20000,
-    model_kwargs={
-        "thinking": {
-            "type": "enabled",
-            "budget_tokens": 4000
-        }
+    thinking={
+        "type": "enabled",
+        "budget_tokens": 4000
     }
 )
 

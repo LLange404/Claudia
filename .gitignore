@@ -6,3 +6,5 @@ data/*
 !data/.gitkeep
 
 Urteile_bereinigt.jsonl
+
+__pycache__

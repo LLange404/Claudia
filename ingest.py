@@ -4,7 +4,8 @@ import lancedb
 import pyarrow as pa
 import numpy as np
 import torch
-from sentence_transformers import SentenceTransformer
+import torch_directml
+from transformers import AutoTokenizer, AutoModel
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from tqdm import tqdm
 
@@ -13,30 +14,55 @@ from tqdm import tqdm
 # ==============================
 
 DB_PATH = "./data"
-JSONL_PATH = "Urteile_bereinigt_test.jsonl"
+JSONL_PATH = "Urteile_bereinigt.jsonl"
 TABLE_NAME = "judgments"
 
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
+MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 
-CHUNK_SIZE = 1500
-CHUNK_OVERLAP = 300
+CHUNK_SIZE = 1200 
+CHUNK_OVERLAP = 200
 
-# 🔥 WICHTIG: Große Chunk-Batches
-CHUNK_BATCH_SIZE = 10000
-EMBEDDING_BATCH_SIZE = 32 # Reduziert für MPNet (größeres Modell)
+# 🔥 AGGRESSIVE BATCHING FÜR GPU-AUSLASTUNG
+CHUNK_BATCH_SIZE = 10000  # Sammle 10k Chunks vor dem Schreiben
+EMBEDDING_BATCH_SIZE = 128 # Große Batchsizer für RX 6750 XT (12GB VRAM)
 
 EMBEDDING_DIM = 768
 
+# ==============================
+# 2. GPU SETUP
+# ==============================
+
+device = torch_directml.device()
+print(f"Nutze Device: {device}")
+torch.set_grad_enabled(False)
+
+print(f"Lade Tokenizer und Modell '{MODEL_NAME}'...")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModel.from_pretrained(MODEL_NAME)
+model.to(device)
+model.eval()
+
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0]
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+def encode_batch(texts):
+    # Padding und Truncation auf 384 Tokens (reicht für MPNet meistens aus)
+    encoded_input = tokenizer(texts, padding=True, truncation=True, max_length=384, return_tensors='pt')
+    encoded_input = {k: v.to(device) for k, v in encoded_input.items()}
+
+    with torch.no_grad():
+        model_output = model(**encoded_input)
+
+    sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
+    sentence_embeddings = torch.nn.functional.normalize(sentence_embeddings, p=2, dim=1)
+    
+    return sentence_embeddings.cpu().numpy()
+
 
 # ==============================
-# 2. CPU OPTIMIERUNG
-# ==============================
-
-torch.set_num_threads(os.cpu_count())
-
-
-# ==============================
-# 3. SCHEMA
+# 3. SCHEMA (Arrow für Speed)
 # ==============================
 
 SCHEMA = pa.schema([
@@ -56,118 +82,86 @@ SCHEMA = pa.schema([
 
 if __name__ == "__main__":
 
-    print("Lade Modell...")
-    model = SentenceTransformer(
-        EMBEDDING_MODEL_NAME,
-        device="cpu"
-    )
-
     db = lancedb.connect(DB_PATH)
-
-    # Sicherstellen, dass die Tabelle gelöscht wird, bevor sie neu erstellt wird
-    if TABLE_NAME in db.list_tables():
-        print(f"Lösche alte Tabelle '{TABLE_NAME}'...")
-        db.drop_table(TABLE_NAME)
-
-    table = db.create_table(TABLE_NAME, schema=SCHEMA)
+    print(f"Initialisiere Tabelle '{TABLE_NAME}'...")
+    table = db.create_table(TABLE_NAME, schema=SCHEMA, mode="overwrite")
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP
     )
 
-    print("Zähle Zeilen...")
-    with open(JSONL_PATH, "r", encoding="utf-8") as f:
-        total_lines = sum(1 for _ in f)
-
-    print("Starte Ingest...")
-
     chunk_buffer = []
-
+    
     with open(JSONL_PATH, "r", encoding="utf-8") as f:
-        with tqdm(total=total_lines, desc="Urteile indiziert") as pbar:
+        with tqdm(desc="Gesamtfortschritt", unit=" chunks") as pbar:
 
             for line in f:
                 try:
                     doc = json.loads(line)
-
                     content = doc.get("content", "")
-                    if not content:
-                        pbar.update(1)
-                        continue
+                    if not content: continue
 
                     chunks = text_splitter.split_text(content)
 
                     for chunk in chunks:
                         chunk_buffer.append({
                             "text": chunk,
-                            "metadata": { # Nest metadata here
+                            "metadata": {
                                 "file_number": str(doc.get("file_number", "Unbekannt")),
                                 "date": str(doc.get("date", "Unbekannt")),
                                 "court_name": str(doc.get("court", "Unbekannt")),
                             }
                         })
 
-                    # 🔥 Wenn genug Chunks gesammelt → Embedding rechnen
-                    if len(chunk_buffer) >= CHUNK_BATCH_SIZE:
+                        if len(chunk_buffer) >= CHUNK_BATCH_SIZE:
+                            # 1. Embeddings berechnen (in großen Batches auf GPU)
+                            texts = [c["text"] for c in chunk_buffer]
+                            all_embeddings = []
+                            
+                            for i in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+                                batch_texts = texts[i : i + EMBEDDING_BATCH_SIZE]
+                                all_embeddings.append(encode_batch(batch_texts))
+                            
+                            final_embeddings = np.vstack(all_embeddings)
 
-                        texts = [c["text"] for c in chunk_buffer]
+                            # 2. Daten für Arrow vorbereiten
+                            vectors = [final_embeddings[i].tolist() for i in range(len(chunk_buffer))]
+                            texts_col = [c["text"] for c in chunk_buffer]
+                            metadata_col = [c["metadata"] for c in chunk_buffer]
 
-                        embeddings = model.encode(
-                            texts,
-                            batch_size=EMBEDDING_BATCH_SIZE,
-                            show_progress_bar=False,
-                            convert_to_numpy=True
-                        )
-
-                        data_to_insert = []
-
-                        for i, chunk in enumerate(chunk_buffer):
-                            vector = np.asarray(
-                                embeddings[i], dtype="float32"
-                            )
-                            chunk["vector"] = vector.tolist()
-                            data_to_insert.append(chunk)
-
-                        table.add(data_to_insert)
-
-                        chunk_buffer = []
-
-                    pbar.update(1)
+                            # 3. Via Arrow in die DB (viel schneller!)
+                            data_table = pa.Table.from_pydict({
+                                "vector": vectors,
+                                "text": texts_col,
+                                "metadata": metadata_col
+                            }, schema=SCHEMA)
+                            
+                            table.add(data_table)
+                            
+                            pbar.update(len(chunk_buffer))
+                            chunk_buffer = []
 
                 except Exception as e:
-                    print(f"Fehler beim Parsen einer Zeile: {e}")
-                    pbar.update(1)
+                    print(f"\nFehler: {e}")
 
-    # ==============================
-    # 5. REST FLUSH
-    # ==============================
-
+    # Rest verarbeiten
     if chunk_buffer:
-        print("Verarbeite Rest-Chunks...")
-
         texts = [c["text"] for c in chunk_buffer]
+        all_embeddings = []
+        for i in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+            all_embeddings.append(encode_batch(texts[i:i+EMBEDDING_BATCH_SIZE]))
+        
+        final_embeddings = np.vstack(all_embeddings)
+        data_table = pa.Table.from_pydict({
+            "vector": [final_embeddings[i].tolist() for i in range(len(chunk_buffer))],
+            "text": [c["text"] for c in chunk_buffer],
+            "metadata": [c["metadata"] for c in chunk_buffer]
+        }, schema=SCHEMA)
+        table.add(data_table)
+        pbar.update(len(chunk_buffer))
 
-        embeddings = model.encode(
-            texts,
-            batch_size=EMBEDDING_BATCH_SIZE,
-            show_progress_bar=False,
-            convert_to_numpy=True
-        )
-
-        data_to_insert = []
-
-        for i, chunk in enumerate(chunk_buffer):
-            vector = np.asarray(
-                embeddings[i], dtype="float32"
-            )
-            chunk["vector"] = vector.tolist()
-            data_to_insert.append(chunk)
-
-        table.add(data_to_insert)
-
-    print("Erstelle Volltext-Index für Stichwortsuche...")
-    # In neueren LanceDB Versionen nutzen wir den Standard-Tokenizer explizit
+    print("\nErstelle FTS Index...")
     table.create_fts_index("text", replace=True)
 
-    print("\nFertig! Datenbank ist bereit.")
+    print("\nFertig!")

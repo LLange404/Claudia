@@ -1,6 +1,7 @@
 langchain
 langchain-community
 langchain-anthropic
+langchain-huggingface
 langchain-text-splitters
 lancedb
 tantivy
@@ -12,5 +13,6 @@ uvicorn
 pandas
 pyarrow
 torch
+torch-directml
 numpy
 jq
